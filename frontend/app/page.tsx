@@ -50,9 +50,14 @@ export default function Home() {
           <span className="font-semibold text-lg tracking-tight text-white">
             Tensorblue
           </span>
-          <span className="text-xs uppercase tracking-wider text-slate-400">
-            Universal Leads AI
-          </span>
+          <div className="flex items-center gap-4">
+            <a href="/leads" className="text-sm text-slate-400 hover:text-white">
+              Leads Agent
+            </a>
+            <span className="text-xs uppercase tracking-wider text-slate-400">
+              Universal Leads AI
+            </span>
+          </div>
         </div>
       </header>
 

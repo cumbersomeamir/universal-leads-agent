@@ -6,7 +6,7 @@ FastAPI app with CORS for Next.js frontend.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import health, leads
+from app.routers import health, leads, run as run_router
 
 app = FastAPI(
     title="Tensorblue Universal Leads AI",
@@ -24,6 +24,7 @@ app.add_middleware(
 
 app.include_router(health.router, tags=["health"])
 app.include_router(leads.router, prefix="/api/leads", tags=["leads"])
+app.include_router(run_router.router, tags=["scraper"])
 
 
 @app.get("/")

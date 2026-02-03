@@ -1,0 +1,91 @@
+# Tensorblue Universal Leads Agent - Scraper config
+# Override via env: SCRAPER_* or in this file
+
+scraper:
+  # Stop conditions (MUST NOT get stuck)
+  max_runtime_per_platform: 120        # seconds
+  max_pages_per_platform: 10
+  max_items_per_platform: 200
+  no_new_leads_limit: 3                # stop after N consecutive pages with 0 new leads
+  watchdog_timeout: 60                 # seconds without progress -> stop platform
+  global_max_runtime: 900              # 15 minutes total
+
+  # Cutoff: only leads from last N months
+  months_lookback: 6
+
+  # Browser
+  headless: true
+  page_timeout: 30000                  # ms per page
+  slow_mo: 0
+  viewport:
+    width: 1280
+    height: 720
+
+  # Search keywords for requirement detection
+  search_keywords:
+    - "looking for developer"
+    - "need an agency"
+    - "seeking freelancer"
+    - "build MVP"
+    - "hire AI engineer"
+    - "need app built"
+    - "automation help"
+    - "looking for agency"
+    - "need developer"
+    - "hire developer"
+    - "freelance"
+    - "outsource"
+
+  # Platforms to run (true = enabled)
+  platforms:
+    reddit: true
+    github: true
+    hackernews: true
+    search_discovery: true
+    craigslist: true
+    upwork: true
+    freelancer: true
+    peopleperhour: true
+    guru: true
+    toptal: true
+    contra: true
+    worksome: true
+    ninety_nine_designs: true
+    arc_dev: true
+    codementor: true
+    topcoder: true
+    braintrust: true
+    wellfound: true
+    indeed: true
+    glassdoor: true
+    remote_ok: true
+    weworkremotely: true
+    outsourcely: true
+    twitter: true
+    threads: true
+    instagram: true
+    facebook: true
+    linkedin: true
+    discord: true
+    slack: true
+    medium: true
+    indiehackers: true
+    producthunt: true
+    notion: true
+    clutch: true
+    goodfirms: true
+    g2: true
+    fiverr: true
+    bark: true
+    thumbtack: true
+    designrush: true
+    google: true
+    bing: true
+    duckduckgo: true
+    google_jobs: true
+    rfp_generic: true
+
+output:
+  dir: "outputs"
+  xlsx_prefix: "leads_"
+  jsonl_prefix: "leads_"

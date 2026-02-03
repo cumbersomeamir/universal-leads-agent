@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+:root {
+  --color-tensorblue: #0f172a;
+  --color-accent: #3b82f6;
+  --color-surface: #1e293b;
+}
+
+body {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}

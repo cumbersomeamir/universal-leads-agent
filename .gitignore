@@ -1,0 +1,4 @@
+# Environment files (secrets) - do not commit
+.env
+.env.*
+!.env.example

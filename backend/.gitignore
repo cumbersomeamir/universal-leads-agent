@@ -1,0 +1,20 @@
+# Virtual env
+.venv
+venv
+env
+
+# Env
+.env
+
+# Python
+__pycache__
+*.py[cod]
+*.pyo
+.pytest_cache
+.mypy_cache
+*.egg-info
+.eggs
+
+# IDE
+.idea
+.DS_Store

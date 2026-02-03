@@ -3,7 +3,7 @@
 from core.date_utils import parse_date_iso, to_iso
 from core.email_extract import extract_and_normalize
 from core.models import Lead, EmailSource, SourceType
-from core.requirement_scoring import score_requirement
+from core.requirement_scoring import score_requirement, should_save_lead
 from core.description_summary import summarize_project
 
 
@@ -18,7 +18,8 @@ def parse_post_page(page, post_url: str, platform: str = "craigslist") -> Lead |
             return None
 
         score, kws = score_requirement(text)
-        if score < 20:
+        has_email = "@" in text
+        if not should_save_lead(text, has_email, score, kws) and score < 20 and not has_email:
             return None
 
         emails = extract_and_normalize(text)

@@ -1,5 +1,7 @@
-"""Craigslist connector - public listings."""
+"""Craigslist connector - cities, cpg/jjj, search terms."""
 
+import random
+import time
 from urllib.parse import urljoin
 
 from core.browser import browser_context, visit_page
@@ -7,11 +9,17 @@ from core.config import get_config
 from core.date_utils import get_cutoff_date, is_after_cutoff, parse_date_iso
 from core.logging import log_message
 from core.models import Lead, SourceType
-from core.stop_conditions import StopState
+from core.stop_conditions import StopState, record_items_scanned
 from platforms.base import BaseConnector
 
 from .parser import parse_post_page
 from .queries import get_search_urls
+
+
+def _random_delay(config: dict) -> None:
+    lo = config.get("random_delay_ms_min", 200)
+    hi = config.get("random_delay_ms_max", 900)
+    time.sleep(random.randint(lo, hi) / 1000.0)
 
 
 class CraigslistConnector(BaseConnector):
@@ -35,24 +43,28 @@ class CraigslistConnector(BaseConnector):
                 for list_url in get_search_urls():
                     if self._should_stop(state)[0]:
                         break
+                    _random_delay(config)
                     page = self._visit_page(ctx, list_url)
                     if not page:
                         self._record_page(state, 0)
                         continue
                     try:
-                        links = page.query_selector_all("a.result-title, a[href*='/cpg/']")
+                        links = page.query_selector_all("a.result-title, a[href*='/cpg/'], a[href*='/jjj/']")
                         hrefs = []
-                        for a in links[:25]:
+                        for a in links[:50]:
                             href = a.get_attribute("href")
-                            if href and "/cpg/" in href and href not in seen:
+                            if href and ("/cpg/" in href or "/jjj/" in href) and href not in seen:
                                 full = urljoin("https://www.craigslist.org", href) if not href.startswith("http") else href
                                 seen.add(full)
                                 hrefs.append(full)
                         page.close()
-                        for post_url in hrefs[:10]:
+                        record_items_scanned(state, len(hrefs))
+                        self._record_page(state, 0)
+                        for post_url in hrefs[:25]:
                             if self._should_stop(state)[0]:
                                 break
-                            state.items_scanned += 1
+                            _random_delay(config)
+                            record_items_scanned(state, 1)
                             p2 = self._visit_page(ctx, post_url)
                             if not p2:
                                 self._record_page(state, 0)

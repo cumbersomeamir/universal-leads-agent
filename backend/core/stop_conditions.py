@@ -35,12 +35,14 @@ def check_platform_stop(
 ) -> tuple[bool, str]:
     """
     Returns (should_stop, reason).
+    Progress = items_scanned OR pages_visited OR leads increased; watchdog only kills if none of these.
     """
     now = time()
-    max_runtime = config.get("max_runtime_per_platform", 120)
-    max_pages = config.get("max_pages_per_platform", 10)
-    max_items = config.get("max_items_per_platform", 200)
-    no_new_limit = config.get("no_new_leads_limit", 3)
+    max_runtime = config.get("max_runtime_per_platform", 240)
+    max_pages = config.get("max_pages_per_platform", 30)
+    max_items = config.get("max_items_per_platform", 800)
+    no_new_limit = config.get("no_new_leads_limit", 8)
+    min_items_before_early = config.get("min_items_to_scan_before_early_stop", 150)
     watchdog = config.get("watchdog_timeout", 60)
     global_max = config.get("global_max_runtime", 900)
 
@@ -60,7 +62,8 @@ def check_platform_stop(
         log_message("max_items_per_platform reached", platform=platform)
         return True, "max_items"
 
-    if state.pages_with_zero_new >= no_new_limit:
+    # Don't early-stop on no_new_leads until we've scanned at least min_items_before_early
+    if state.pages_with_zero_new >= no_new_limit and state.items_scanned >= min_items_before_early:
         log_message("no_new_leads_limit reached", platform=platform)
         return True, "no_new_leads"
 
@@ -82,3 +85,9 @@ def record_page_done(
         state.pages_with_zero_new = 0
     else:
         state.pages_with_zero_new += 1
+
+
+def record_items_scanned(state: StopState, count: int) -> None:
+    """Call when items_scanned increases (progress = items scanned)."""
+    state.items_scanned += count
+    state.last_progress_time = time()

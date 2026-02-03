@@ -36,10 +36,11 @@ def get_config() -> dict:
         return scraper.get(key, default)
 
     return {
-        "max_runtime_per_platform": env_int("max_runtime_per_platform", 120),
-        "max_pages_per_platform": env_int("max_pages_per_platform", 10),
-        "max_items_per_platform": env_int("max_items_per_platform", 200),
-        "no_new_leads_limit": env_int("no_new_leads_limit", 3),
+        "max_runtime_per_platform": env_int("max_runtime_per_platform", 240),
+        "max_pages_per_platform": env_int("max_pages_per_platform", 30),
+        "max_items_per_platform": env_int("max_items_per_platform", 800),
+        "no_new_leads_limit": env_int("no_new_leads_limit", 8),
+        "min_items_to_scan_before_early_stop": env_int("min_items_to_scan_before_early_stop", 150),
         "watchdog_timeout": env_int("watchdog_timeout", 60),
         "global_max_runtime": env_int("global_max_runtime", 900),
         "months_lookback": env_int("months_lookback", 6),
@@ -49,6 +50,9 @@ def get_config() -> dict:
         "viewport": scraper.get("viewport") or {"width": 1280, "height": 720},
         "search_keywords": scraper.get("search_keywords") or [],
         "platforms_enabled": scraper.get("platforms") or {},
+        "random_delay_ms_min": scraper.get("random_delay_ms_min", 200),
+        "random_delay_ms_max": scraper.get("random_delay_ms_max", 900),
+        "per_domain_cap": scraper.get("per_domain_cap", 15),
         "output_dir": _BACKEND_ROOT / (output.get("dir") or "outputs"),
         "xlsx_prefix": output.get("xlsx_prefix") or "leads_",
         "jsonl_prefix": output.get("jsonl_prefix") or "leads_",

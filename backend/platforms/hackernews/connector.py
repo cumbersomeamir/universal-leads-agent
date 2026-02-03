@@ -1,5 +1,7 @@
-"""Hacker News connector - public jobs/ask/newest."""
+"""Hacker News connector - Who is hiring, Algolia search, jobs/ask."""
 
+import random
+import time
 from urllib.parse import urljoin
 
 from core.browser import browser_context, visit_page
@@ -7,11 +9,32 @@ from core.config import get_config
 from core.date_utils import get_cutoff_date, is_after_cutoff, parse_date_iso
 from core.logging import log_message
 from core.models import Lead, SourceType
-from core.stop_conditions import StopState
+from core.stop_conditions import StopState, record_items_scanned
 from platforms.base import BaseConnector
 
 from .parser import parse_item_page
-from .queries import get_listing_urls
+from .queries import get_listing_urls, get_algolia_search_urls
+
+
+def _random_delay(config: dict) -> None:
+    lo = config.get("random_delay_ms_min", 200)
+    hi = config.get("random_delay_ms_max", 900)
+    time.sleep(random.randint(lo, hi) / 1000.0)
+
+
+def _collect_hrefs(page, seen: set) -> list[str]:
+    hrefs = []
+    for sel in ["a[href*='item?id=']", "a[href*='news.ycombinator.com/item']", "a.titlelink"]:
+        links = page.query_selector_all(sel)
+        for a in links[:40]:
+            href = a.get_attribute("href")
+            if href:
+                full = urljoin("https://news.ycombinator.com", href) if not href.startswith("http") else href
+                if "item?id=" in full or "ycombinator.com" in full:
+                    if full not in seen:
+                        seen.add(full)
+                        hrefs.append(full)
+    return hrefs
 
 
 class HackerNewsConnector(BaseConnector):
@@ -32,38 +55,72 @@ class HackerNewsConnector(BaseConnector):
 
         try:
             with browser_context(config) as (_pw, ctx):
+                # Algolia search first
+                for alg_url in get_algolia_search_urls()[:5]:
+                    if self._should_stop(state)[0]:
+                        break
+                    _random_delay(config)
+                    page = self._visit_page(ctx, alg_url)
+                    if not page:
+                        self._record_page(state, 0)
+                        continue
+                    try:
+                        links = page.query_selector_all("a[href*='item']")
+                        hrefs = []
+                        for a in links[:30]:
+                            href = a.get_attribute("href")
+                            if href and "item" in href and href not in seen:
+                                full = urljoin("https://hn.algolia.com", href) if not href.startswith("http") else href
+                                if "item?id=" in full or "ycombinator.com" in full:
+                                    seen.add(full)
+                                    hrefs.append(full)
+                        page.close()
+                        record_items_scanned(state, len(hrefs))
+                        self._record_page(state, 0)
+                        for item_url in hrefs[:20]:
+                            if self._should_stop(state)[0]:
+                                break
+                            _random_delay(config)
+                            record_items_scanned(state, 1)
+                            p2 = self._visit_page(ctx, item_url)
+                            if not p2:
+                                self._record_page(state, 0)
+                                continue
+                            lead = parse_item_page(p2, item_url, self.name)
+                            p2.close()
+                            if lead and lead.post_url not in {l.post_url for l in leads}:
+                                if lead.post_date:
+                                    d = parse_date_iso(lead.post_date)
+                                    if d and not is_after_cutoff(d, cutoff):
+                                        self._record_page(state, 0)
+                                        continue
+                                leads.append(lead)
+                                self._record_page(state, 1)
+                            else:
+                                self._record_page(state, 0)
+                    except Exception as e:
+                        log_message("hn algolia error", url=alg_url, error=str(e))
+                        self._record_page(state, 0)
+
+                # HN listing pages
                 for list_url in get_listing_urls():
                     if self._should_stop(state)[0]:
                         break
+                    _random_delay(config)
                     page = self._visit_page(ctx, list_url)
                     if not page:
                         self._record_page(state, 0)
                         continue
                     try:
-                        # Prefer item pages (discussion) for full text
-                        links = page.query_selector_all("a[href*='item?id=']")
-                        hrefs = []
-                        for a in links[:25]:
-                            href = a.get_attribute("href")
-                            if href and "item?id=" in href:
-                                full = urljoin("https://news.ycombinator.com", href) if not href.startswith("http") else href
-                                if full not in seen:
-                                    seen.add(full)
-                                    hrefs.append(full)
-                        if not hrefs:
-                            links = page.query_selector_all("a.titlelink")
-                            for a in links[:15]:
-                                href = a.get_attribute("href")
-                                if href and ("item" in href or href.startswith("/")):
-                                    full = urljoin("https://news.ycombinator.com", href)
-                                    if full not in seen:
-                                        seen.add(full)
-                                        hrefs.append(full)
+                        hrefs = _collect_hrefs(page, seen)
                         page.close()
-                        for item_url in hrefs[:10]:
+                        record_items_scanned(state, len(hrefs))
+                        self._record_page(state, 0)
+                        for item_url in hrefs[:25]:
                             if self._should_stop(state)[0]:
                                 break
-                            state.items_scanned += 1
+                            _random_delay(config)
+                            record_items_scanned(state, 1)
                             p2 = self._visit_page(ctx, item_url)
                             if not p2:
                                 self._record_page(state, 0)

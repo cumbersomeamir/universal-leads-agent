@@ -1,19 +1,30 @@
-"""Search keywords and starting URLs for Reddit (public only)."""
+"""Reddit: subreddits and JSON endpoints."""
 
-def get_search_queries(keywords: list[str]) -> list[str]:
-    """Queries for use in Google/Bing to find Reddit posts, or Reddit search if public."""
-    return [
-        f'site:reddit.com/r/forhire "looking for"',
-        f'site:reddit.com/r/forhire "need developer"',
-        f'site:reddit.com "looking for developer" email',
-        f'site:reddit.com "hire" "freelance"',
-    ]
+SUBREDDITS = [
+    "forhire",
+    "jobbit",
+    "freelance",
+    "startups",
+    "entrepreneur",
+    "smallbusiness",
+    "webdev",
+    "SaaS",
+    "SideProject",
+    "remotework",
+    "hiring",
+    "slavelabour",
+]
 
 
 def get_subreddit_urls() -> list[str]:
-    """Public subreddits that often have client requests."""
-    return [
-        "https://www.reddit.com/r/forhire/",
-        "https://www.reddit.com/r/slavelabour/",
-        "https://www.reddit.com/r/hiring/",
-    ]
+    """Listing URLs (HTML) - fallback."""
+    return [f"https://www.reddit.com/r/{s}/" for s in SUBREDDITS]
+
+
+def get_json_urls(limit: int = 100) -> list[str]:
+    """JSON endpoints: new.json and search.json."""
+    urls = []
+    for sub in SUBREDDITS:
+        urls.append(f"https://www.reddit.com/r/{sub}/new.json?limit={limit}")
+        urls.append(f"https://www.reddit.com/r/{sub}/search.json?q=hire+OR+developer+OR+freelance&restrict_sr=1&sort=new&t=year&limit={limit}")
+    return urls

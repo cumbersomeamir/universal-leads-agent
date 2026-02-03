@@ -3,12 +3,16 @@
 
 scraper:
   # Stop conditions (MUST NOT get stuck)
-  max_runtime_per_platform: 120        # seconds
-  max_pages_per_platform: 10
-  max_items_per_platform: 200
-  no_new_leads_limit: 3                # stop after N consecutive pages with 0 new leads
-  watchdog_timeout: 60                 # seconds without progress -> stop platform
+  max_runtime_per_platform: 240        # seconds
+  max_pages_per_platform: 30
+  max_items_per_platform: 800
+  no_new_leads_limit: 8                # stop after N consecutive pages with 0 new leads
+  min_items_to_scan_before_early_stop: 150  # don't early-stop on no_new_leads until at least this many items
+  watchdog_timeout: 60                 # seconds without progress (items/pages/leads) -> stop platform
   global_max_runtime: 900              # 15 minutes total
+  random_delay_ms_min: 200
+  random_delay_ms_max: 900
+  per_domain_cap: 15                   # max result URLs per domain from search discovery
 
   # Cutoff: only leads from last N months
   months_lookback: 6

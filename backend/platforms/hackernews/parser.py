@@ -1,27 +1,36 @@
-"""Parse HN item page or listing row."""
+"""Parse HN item page - extract mailto and comment emails."""
 
+import re
 from core.date_utils import parse_relative_date, to_iso
 from core.email_extract import extract_and_normalize
 from core.models import Lead, EmailSource, SourceType
-from core.requirement_scoring import score_requirement
+from core.requirement_scoring import score_requirement, should_save_lead
 from core.description_summary import summarize_project
+
+MAILTO_RE = re.compile(r"mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", re.I)
 
 
 def parse_item_page(page, item_url: str, platform: str = "hackernews") -> Lead | None:
     try:
         title_el = page.query_selector(".title a, .fatitem .title")
         title = (title_el.inner_text() or "").strip() if title_el else ""
-        body_el = page.query_selector(".toptext, .comment")
+        body_el = page.query_selector(".toptext, .comment, .commtext")
         body = (body_el.inner_text() or "").strip() if body_el else ""
         text = f"{title}\n{body}".strip()
         if not text:
             return None
 
         score, kws = score_requirement(text)
-        if score < 20:
+        has_email = "@" in text
+        if not should_save_lead(text, has_email, score, kws) and score < 20 and not has_email:
+            return None
+        if score < 15 and not has_email:
             return None
 
         emails = extract_and_normalize(text)
+        if not emails:
+            emails = MAILTO_RE.findall(text)
+        emails = list(dict.fromkeys(e.strip().lower() for e in emails if e and "example" not in e))
         email = emails[0] if emails else ""
         email_source = EmailSource.IN_POST if email else EmailSource.NONE
 

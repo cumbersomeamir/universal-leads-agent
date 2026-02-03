@@ -1,9 +1,17 @@
-"""Search queries and starting URLs for GitHub Issues/Discussions."""
+"""GitHub Issues search - public query URLs."""
 
-def get_search_urls(keywords: list[str]) -> list[str]:
-    """GitHub search (public) - issues with requirement-like text."""
-    q = "need developer OR hire developer OR looking for developer OR build MVP"
-    return [
-        f"https://github.com/search?q={q}&type=issues",
-        "https://github.com/search?q=looking+for+freelancer+OR+need+app+built&type=issues",
+def get_search_urls(keywords: list[str] | None = None) -> list[str]:
+    """Public issue search URLs - no API key."""
+    qs = [
+        "looking+for+developer",
+        "hiring+developer",
+        "need+help+building",
+        "contract+developer",
+        "agency+freelance",
+        "freelancer+hire",
+        "build+MVP",
+        "need+developer",
+        "hire+freelancer",
     ]
+    base = "https://github.com/search?q={}&type=issues&s=updated&o=desc"
+    return [base.format(q) for q in qs]

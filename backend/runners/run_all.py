@@ -2,10 +2,10 @@
 """
 Run all enabled platforms sequentially.
 Merge + dedupe -> export XLSX + JSONL -> print summary.
-Usage: python backend/runners/run_all.py  (from repo root)
-       or: python runners/run_all.py       (from backend/)
+Usage: python backend/runners/run_all.py [--debug-save-candidates]
 """
 
+import argparse
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,14 +18,16 @@ if str(_BACKEND) not in sys.path:
 
 from core.config import get_config, get_platforms_to_run
 from core.dedupe import dedupe_leads
+from core.debug_candidates import set_enabled as set_debug_enabled, save as save_rejected
 from core.export import export_xlsx, export_jsonl
 from core.logging import setup_logging, log_message
 from core.models import Lead, RunSummary, PlatformResult
 from platforms.registry import get_connector
 
 
-def main() -> RunSummary:
+def main(debug_save_candidates: bool = False) -> RunSummary:
     setup_logging()
+    set_debug_enabled(debug_save_candidates)
     config = get_config()
     platforms_to_run = get_platforms_to_run()
     if not platforms_to_run:
@@ -86,6 +88,12 @@ def main() -> RunSummary:
         platform_results=results,
     )
 
+    if debug_save_candidates:
+        rejected_path = save_rejected()
+        if rejected_path:
+            log_message("Debug: rejected candidates saved", path=rejected_path)
+            print(f"Rejected (debug): {rejected_path}")
+
     print("\n--- Run Summary ---")
     print(f"Total leads: {summary.total_leads}")
     print(f"Unique (after dedupe): {summary.unique_leads_after_dedupe}")
@@ -97,4 +105,7 @@ def main() -> RunSummary:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug-save-candidates", action="store_true", help="Save first 50 rejected candidates to rejected_<ts>.jsonl")
+    args = parser.parse_args()
+    main(debug_save_candidates=args.debug_save_candidates)

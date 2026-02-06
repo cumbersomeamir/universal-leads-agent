@@ -101,3 +101,11 @@ Configure in `backend/config.yaml` or env `SCRAPER_*`.
 - `GET /runs/latest` — last run summary
 - `GET /outputs` — list output files
 - `GET /outputs/{filename}` — download file
+
+## Apify scrapers (optional)
+
+This repo also includes Apify-based scrapers under `Apify/` (separate from the backend scraper pipeline):
+
+- `Apify/Rightmove/` — Rightmove London commercial property to let → `rightmove_london_commercial.xlsx`
+
+See `Apify/Rightmove/README.md` for setup, run modes (`--test`, chunked full run, `APIFY_RUN_ID` harvest), and troubleshooting.

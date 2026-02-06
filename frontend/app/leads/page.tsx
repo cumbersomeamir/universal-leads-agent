@@ -1,37 +1,63 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const API = "/api/backend";
+
+function getMessage(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object" && "message" in detail && typeof (detail as { message: string }).message === "string")
+    return (detail as { message: string }).message;
+  return "Something went wrong";
+}
 
 export default function LeadsPage() {
   const [running, setRunning] = useState(false);
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
   const [outputs, setOutputs] = useState<{ name: string; path: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [backendOk, setBackendOk] = useState<boolean | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [latestRes, outputsRes] = await Promise.all([
+        fetch(`${API}/runs/latest`),
+        fetch(`${API}/outputs`),
+      ]);
+      setBackendOk(latestRes.ok || outputsRes.ok);
+      if (latestRes.ok) {
+        const data = await latestRes.json();
+        setSummary(data);
+      } else {
+        setSummary(null);
+      }
+      const outData = await outputsRes.json();
+      setOutputs(outData.files ?? []);
+    } catch {
+      setBackendOk(false);
+      setSummary(null);
+      setOutputs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch(`${API}/runs/latest`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setSummary)
-      .catch(() => setSummary(null));
-    fetch(`${API}/outputs`)
-      .then((r) => r.json())
-      .then((d) => setOutputs(d.files || []))
-      .catch(() => setOutputs([]));
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   const runScrape = async () => {
     setRunning(true);
     setError(null);
     try {
       const res = await fetch(`${API}/run`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Run failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(getMessage(data.detail ?? "Run failed"));
       setSummary(data);
       const outRes = await fetch(`${API}/outputs`);
       const outData = await outRes.json();
-      setOutputs(outData.files || []);
+      setOutputs(outData.files ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed");
     } finally {
@@ -44,9 +70,16 @@ export default function LeadsPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         <header className="flex items-center justify-between border-b border-slate-800 pb-4">
           <h1 className="text-2xl font-bold">Universal Leads Agent</h1>
-          <a href="/" className="text-slate-400 hover:text-white text-sm">
-            Home
-          </a>
+          <div className="flex items-center gap-3">
+            {backendOk === false && (
+              <span className="text-amber-400 text-sm" title="Backend not reachable">
+                Backend offline
+              </span>
+            )}
+            <a href="/" className="text-slate-400 hover:text-white text-sm">
+              Home
+            </a>
+          </div>
         </header>
 
         <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
@@ -57,17 +90,27 @@ export default function LeadsPage() {
           <button
             onClick={runScrape}
             disabled={running}
-            className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+            className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {running ? "Running…" : "Run scrape"}
           </button>
           {error && <p className="mt-2 text-red-400 text-sm">{error}</p>}
         </section>
 
-        {summary && (
+        {loading ? (
+          <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <div className="animate-pulse space-y-2">
+              <div className="h-4 bg-slate-700 rounded w-1/3" />
+              <div className="h-4 bg-slate-700 rounded w-2/3" />
+              <div className="h-4 bg-slate-700 rounded w-1/2" />
+            </div>
+          </section>
+        ) : summary ? (
           <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
             <h2 className="text-lg font-semibold mb-4">Last run summary</h2>
             <dl className="grid grid-cols-2 gap-2 text-sm">
+              <dt className="text-slate-400">Run ID</dt>
+              <dd className="font-mono text-xs truncate" title={String(summary.run_id ?? "")}>{String(summary.run_id ?? "—")}</dd>
               <dt className="text-slate-400">Total leads</dt>
               <dd>{String(summary.total_leads ?? 0)}</dd>
               <dt className="text-slate-400">Unique (after dedupe)</dt>
@@ -80,10 +123,23 @@ export default function LeadsPage() {
               <dd className="truncate">{String(summary.output_xlsx ?? "")}</dd>
             </dl>
           </section>
+        ) : (
+          <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <p className="text-slate-500 text-sm">No run yet. Click &quot;Run scrape&quot; to start.</p>
+          </section>
         )}
 
         <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-          <h2 className="text-lg font-semibold mb-4">Outputs</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Outputs</h2>
+            <button
+              type="button"
+              onClick={() => { setLoading(true); fetchData(); }}
+              className="text-slate-400 hover:text-white text-sm"
+            >
+              Refresh
+            </button>
+          </div>
           <ul className="space-y-2">
             {outputs.length === 0 && <li className="text-slate-500 text-sm">No files yet.</li>}
             {outputs.map((f) => (
